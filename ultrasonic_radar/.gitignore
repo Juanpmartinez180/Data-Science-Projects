@@ -2,4 +2,5 @@ ultrasonic_radar/.ipynb_checkpoints/
 arduino/.ipynb_checkpoints/
 datasets/.ipynb_checkpoints/
 arduino/__pycache__/
-
+arduino/captured_data/.ipynb_checkpoints/test_near-checkpoint.csv
+arduino/.ipynb_checkpoints/serial_read-checkpoint.ipynb
