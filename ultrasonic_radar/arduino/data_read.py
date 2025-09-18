@@ -166,9 +166,9 @@ def dataSendLoop(addData_callbackFunc):
         #Capture data via Serial Comm port
         
         for i in range(2048):
-            line = ser.readline()
+            line = ser.readline(errors='ignore')
             if line:
-                string = line.decode()
+                string = line.decode(errors='ignore')
                 result.append(string.split('\r')[0])
         
         ser.close() # End Serial Comm

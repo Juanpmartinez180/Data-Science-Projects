@@ -115,11 +115,11 @@ def pulse_detection(sample, print_results):
     center_point = echo_center_point(sample, threshold)[0]
     
     if print_results:
-        echo_plot_y = [i for i in range(3)]
+        echo_plot_y = [i for i in range(int(1.2*max(sample)))]
 
         for i in range(len(center_point)): 
             echo_plot_x = [center_point[i] for j in range(len(echo_plot_y))]
-            plt.plot(echo_plot_x, echo_plot_y, label = 'Echo center point')
+            plt.plot(echo_plot_y, echo_plot_x, label = 'Echo center point')
 
     ### Calculate the pulse center
 
