@@ -20,9 +20,9 @@ import object_location # Aún lo usamos para la función make_grid
 
 # --- CONFIGURACIÓN ---
 SERIAL_PORT = '/dev/ttyACM0'  # ¡IMPORTANTE! Cambia esto al puerto serial de tu Arduino
-BAUD_RATE = 115200
+BAUD_RATE = 250000
 MODEL_PATH = '../models/model_v2.h5' # Ruta al modelo
-REFRESH_INTERVAL_SECONDS = 2 # Tiempo de refresco
+REFRESH_INTERVAL_SECONDS = 1 # Tiempo de refresco
 PREDICTION_THRESHOLD = 0.1
 N_SENSORS = 3
 SERIAL_LENGTH = 2048
@@ -51,17 +51,35 @@ def capture_and_process(ser, model):
     raw_data = np.zeros([1, N_SENSORS, SERIAL_LENGTH])
     ser.flushInput()
     for j in range(N_SENSORS):
+        # 1. SINCRONIZAR: Esperar el encabezado de inicio de datos del sensor
+        while True:
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
+            if f"Datos del Sensor {j+1}" in line:
+                print(f"Recibiendo datos del sensor {j+1}...")
+                break
+        
+        # 2. CAPTURAR: Leer la cantidad esperada de muestras de voltaje
         temp_data = []
         for k in range(SERIAL_LENGTH):
-            line = ser.readline()
-            if line:
-                string = line.decode(errors='ignore')
-                try: temp_data.append(float(string.strip()))
-                except ValueError: temp_data.append(2.5)
-        if len(temp_data) < SERIAL_LENGTH:
+            try:
+                line = ser.readline().decode('utf-8', errors='ignore').strip()
+                # 3. CONVERTIR: Intentar convertir la línea a un número flotante
+                voltage = float(line)
+                temp_data.append(voltage)
+            except (ValueError, IndexError):
+                # Si la línea está vacía o no es un número, la ignoramos y continuamos
+                print(f"Advertencia: Se recibió una línea inválida: '{line}'")
+                temp_data.append(np.nan) # Agregar un marcador de dato inválido
+
+        # Almacenar los datos capturados
+        if len(temp_data) == SERIAL_LENGTH:
+            #received_data[j, :] = temp_data
             temp_data.extend([2.5] * (SERIAL_LENGTH - len(temp_data)))
         raw_data[0, j, :] = temp_data[:SERIAL_LENGTH]
-
+        #if len(temp_data) < SERIAL_LENGTH:
+         #   temp_data.extend([2.5] * (SERIAL_LENGTH - len(temp_data)))
+        #raw_data[0, j, :] = temp_data[:SERIAL_LENGTH]
+        
     curated_data = np.zeros([1, N_SENSORS, 81])
     predicted_indices = np.array([])
     try:
