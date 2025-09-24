@@ -43,15 +43,15 @@ void loop() {
   
   
   // Select MUX channel C1 (S0 = 1, S1 = 0, S2 = 0, S3 = 0)
-  digitalWrite(mux_chnl_sel_0, LOW);
+  digitalWrite(mux_chnl_sel_0, HIGH);
   digitalWrite(mux_chnl_sel_1, LOW);
   digitalWrite(mux_chnl_sel_2, LOW);
   digitalWrite(mux_chnl_sel_3, LOW);
   
   //trigger the sensor 2 echo 
-  digitalWrite(trigger_1, HIGH);
+  digitalWrite(trigger_3, HIGH);
   delayMicroseconds(50);
-  digitalWrite(trigger_1, LOW);
+  digitalWrite(trigger_3, LOW);
   
   delayMicroseconds(500);   //Delay before the capture to avoid internal echoes
     
