@@ -3,6 +3,9 @@ import functools
 import numpy as np
 from numpy import diff
 import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
+from numpy import diff
+from scipy.signal import hilbert, find_peaks, savgol_filter
 
 
 ############
@@ -159,4 +162,51 @@ def dimention_transformation(center_point_pulse, center_point, print_results):
 
     output_space = [int((echo - center_point_pulse)*transformation_ratio) for echo in center_point]
 
+    return(output_space)
+
+############
+
+def output_dimention_pulses(sample, threshold):
+    """
+    Description: Function to return the sample number for a detected initial pulse and for the captured echo/es
+    Input: sample: Array with all the raw data
+            threshold: Threshold value used for the promincence criteria
+    Output: output_space
+    """
+    initial_sample_freq = 140000  # ADC space
+    final_sample_freq = 6800  # ML algorithm space
+    default_detection_threshold = 0.1
+    
+    transformation_ratio = final_sample_freq / initial_sample_freq
+
+    if threshold > 0.001:
+        prominence = threshold
+    else:
+        prominence = default_detection_threshold
+
+    signal = sample
+    # Obtener la envolvente de la señal usando la Transformada de Hilbert
+    analytic_signal = hilbert(signal)
+    envelope = np.abs(analytic_signal)
+    
+    baseline = np.median(envelope)
+    envelope_zero_centered = envelope - baseline
+
+    # --- 3. Detección de Picos en la Envolvente ---
+    
+    # Encuentra picos que tengan una altura mínima de 0.1 por encima del nivel base y
+    # que estén separados por al menos 150 muestras.
+    peaks, properties = find_peaks(envelope_zero_centered, prominence=prominence, distance=150)
+
+    if peaks[0] < 400:
+        initial_pulse = peaks[0]
+        peaks_clean = peaks[~(peaks < 500)]
+    else:
+        initial_pulse = 0
+        
+    output_space = [int((echo - initial_pulse)*transformation_ratio) for echo in peaks_clean]
+
+    return(output_space, peaks)
+
+        
     return(output_space)

@@ -24,6 +24,7 @@ BAUD_RATE = 250000
 MODEL_PATH = '../models/model_v2.h5' # Ruta al modelo
 REFRESH_INTERVAL_SECONDS = 1 # Tiempo de refresco
 PREDICTION_THRESHOLD = 0.1
+PEAK_DETECTION_THRESHOLD = 0.1 # Umbral para la nueva detección de picos
 N_SENSORS = 3
 SERIAL_LENGTH = 2048
 
@@ -82,14 +83,21 @@ def capture_and_process(ser, model):
         
     curated_data = np.zeros([1, N_SENSORS, 81])
     predicted_indices = np.array([])
+    all_peaks = []
     try:
         for sensor_idx in range(raw_data.shape[1]):
             sample = raw_data[0, sensor_idx, 100:].astype(float)
+            
+            '''
             sample_denoised = helpers.derivate_and_noise_reduction(sample, False)
             center_point_pulse, center_point = helpers.pulse_detection(sample_denoised, False)
             if not center_point_pulse or not center_point:
                 continue
             output_space = helpers.dimention_transformation(center_point_pulse, center_point, False)
+            '''
+            output_space,peaks = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD)
+            all_peaks.append(peaks) # Guarda los picos para graficarlos
+            print(f"Output space (índices): {output_space}")
             for pulse_idx in output_space:
                 if 0 <= pulse_idx < curated_data.shape[2]:
                      curated_data[0, sensor_idx, int(pulse_idx)] = 1
@@ -103,20 +111,23 @@ def capture_and_process(ser, model):
     except ValueError as e:
         print(f"Advertencia durante el procesamiento: {e}. Omitiendo este ciclo.")
         return raw_data[0], curated_data[0], np.array([])
-    return raw_data[0], curated_data[0], predicted_indices
+    return raw_data[0], curated_data[0], predicted_indices, all_peaks
 
 # --- FUNCIÓN DE DIBUJO DEL DASHBOARD ---
 def update_plot(frame, ser, model, axes, coords_df):
     """Función que se ejecuta en cada intervalo para actualizar los 3 gráficos."""
     ax1, ax2, ax3 = axes
     try:
-        raw_data, curated_data, predicted_indices = capture_and_process(ser, model)
+        raw_data, curated_data, predicted_indices, all_peaks = capture_and_process(ser, model)
         
         # Gráfico 1: Datos Crudos
         ax1.clear()
         for i in range(N_SENSORS):
             sample = raw_data[i, 100:]
             ax1.plot(np.arange(0, len(sample)), sample, label=f's{i+1}')
+            peaks = all_peaks[i]
+            valid_peaks = peaks[peaks < len(sample)]
+            ax1.plot(valid_peaks, sample[valid_peaks], 'x', color='red', markersize=8, label=f'Picos S{i+1}' if i==0 else "")
         ax1.set_title('Señales Crudas del Sensor')
         ax1.legend()
         ax1.grid(True)
