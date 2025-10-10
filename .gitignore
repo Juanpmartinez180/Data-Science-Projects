@@ -6,3 +6,7 @@ Kaggle_competitions/House_prices/Dataset/
 Kaggle_competitions/Titanic_challenge/Dataset/
 ultrasonic_radar/arduino/.ipynb_checkpoints/serial_read-checkpoint.ipynb
 ultrasonic_radar/arduino/arduino_scripts/.ipynb_checkpoints/microcontroller_handler-checkpoint.c
+ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_ai_enhanced/.ipynb_checkpoints/ultrasonic_sonar_ai_enhanced-checkpoint.ino
+ultrasonic_radar/arduino/development/.ipynb_checkpoints/data_processing-checkpoint.ipynb
+ultrasonic_radar/arduino/development/.ipynb_checkpoints/binarycomm-checkpoint.ipynb
+ultrasonic_radar/arduino/captured_data/multisensor_data/.ipynb_checkpoints/sample_2025-09-24_19:21:38-checkpoint.csv
