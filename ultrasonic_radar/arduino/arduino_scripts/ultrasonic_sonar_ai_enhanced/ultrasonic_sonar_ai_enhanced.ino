@@ -82,8 +82,10 @@ void loop() {
 
     // Imprimir datos desde el búfer LOCAL
     for (int i = 0; i < bufsize; i++) {
-      float voltage = buf[obufn][i] * 3.3 / 4095.0;
-      Serial.println(voltage, 4);
+      //float voltage = buf[obufn][i] * 3.3 / 4095.0;
+      //Serial.println(voltage, 4);
+      // Enviamos los 2 bytes crudos del valor uint16_t del ADC
+      Serial.write((uint8_t*)&buf[obufn][i], sizeof(uint16_t));
     }
     Serial.println("--- Fin de Datos ---");
 
