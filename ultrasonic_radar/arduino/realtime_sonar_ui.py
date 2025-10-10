@@ -7,7 +7,7 @@ import matplotlib.animation as animation
 from keras.models import load_model
 from keras import backend as K
 import seaborn as sns
-
+import struct 
 # Nuevas librerías necesarias para el gráfico espacial (de object_location.py)
 import shapely
 from shapely.geometry import Polygon, Point
@@ -48,69 +48,88 @@ def f1_m(y_true, y_pred):
 
 # --- FUNCIONES DE PROCESAMIENTO ---
 def capture_and_process(ser, model):
-    """Captura, procesa y predice, devolviendo los datos para los gráficos."""
+    """
+    Captura datos binarios, los procesa y ejecuta la inferencia del modelo.
+    """
+    # Array para almacenar los voltajes finales
     raw_data = np.zeros([1, N_SENSORS, SERIAL_LENGTH])
+    
+    # Constante para la lectura binaria: 2048 muestras * 2 bytes/muestra (uint16_t)
+    BYTES_PER_SENSOR = SERIAL_LENGTH * 2 
+    
     ser.flushInput()
+
     for j in range(N_SENSORS):
-        # 1. SINCRONIZAR: Esperar el encabezado de inicio de datos del sensor
+        # 1. SINCRONIZAR: Esperar el encabezado (esto no cambia)
         while True:
-            line = ser.readline().decode('utf-8', errors='ignore').strip()
-            if f"Datos del Sensor {j+1}" in line:
-                print(f"Recibiendo datos del sensor {j+1}...")
-                break
-        
-        # 2. CAPTURAR: Leer la cantidad esperada de muestras de voltaje
-        temp_data = []
-        for k in range(SERIAL_LENGTH):
             try:
                 line = ser.readline().decode('utf-8', errors='ignore').strip()
-                # 3. CONVERTIR: Intentar convertir la línea a un número flotante
-                voltage = float(line)
-                temp_data.append(voltage)
-            except (ValueError, IndexError):
-                # Si la línea está vacía o no es un número, la ignoramos y continuamos
-                print(f"Advertencia: Se recibió una línea inválida: '{line}'")
-                temp_data.append(np.nan) # Agregar un marcador de dato inválido
+                if f"Datos del Sensor {j+1}" in line:
+                    print(f"Recibiendo datos binarios del sensor {j+1}...")
+                    break
+            except serial.SerialException as e:
+                print(f"Error de comunicación serial: {e}")
+                # Devolvemos arrays vacíos o con NaNs para indicar el fallo
+                return np.full((N_SENSORS, SERIAL_LENGTH), np.nan), np.zeros((N_SENSORS, 81)), np.array([]), []
 
-        # Almacenar los datos capturados
-        if len(temp_data) == SERIAL_LENGTH:
-            #received_data[j, :] = temp_data
-            temp_data.extend([2.5] * (SERIAL_LENGTH - len(temp_data)))
-        raw_data[0, j, :] = temp_data[:SERIAL_LENGTH]
-        #if len(temp_data) < SERIAL_LENGTH:
-         #   temp_data.extend([2.5] * (SERIAL_LENGTH - len(temp_data)))
-        #raw_data[0, j, :] = temp_data[:SERIAL_LENGTH]
+        # 2. CAPTURAR: Leer el bloque completo de bytes binarios
+        binary_data = ser.read(BYTES_PER_SENSOR)
         
+        # 3. Limpiar: Leer la línea de fin de datos para limpiar el buffer
+        ser.readline() 
+
+        # 4. PROCESAR: Decodificar los bytes y convertirlos a voltaje
+        if len(binary_data) == BYTES_PER_SENSOR:
+            # '<' indica little-endian (correcto para Arduino)
+            # '{SERIAL_LENGTH}H' indica 2048 enteros cortos sin signo
+            unpacked_data = struct.unpack(f'<{SERIAL_LENGTH}H', binary_data)
+            
+            # Convertir la tupla de enteros (0-4095) a un array de voltajes
+            voltages = np.array(unpacked_data) * (3.3 / 4095.0)
+            
+            raw_data[0, j, :] = voltages
+        else:
+            print(f"Error de lectura para el sensor {j+1}: Se recibieron {len(binary_data)} bytes en lugar de {BYTES_PER_SENSOR}.")
+            # Rellenar con NaNs (Not a Number) para indicar datos corruptos
+            raw_data[0, j, :] = np.nan
+
+    # --- El resto del procesamiento y la inferencia no necesitan cambios ---
+    
     curated_data = np.zeros([1, N_SENSORS, 81])
     predicted_indices = np.array([])
     all_peaks = []
+    
     try:
         for sensor_idx in range(raw_data.shape[1]):
+            # Asegurarse de que no hay NaNs antes de procesar
+            if np.isnan(raw_data[0, sensor_idx, :]).any():
+                print(f"Omitiendo procesamiento para el sensor {sensor_idx+1} debido a datos corruptos.")
+                all_peaks.append([]) # Agregar una lista vacía para los picos
+                continue
+
             sample = raw_data[0, sensor_idx, 100:].astype(float)
             
-            '''
-            sample_denoised = helpers.derivate_and_noise_reduction(sample, False)
-            center_point_pulse, center_point = helpers.pulse_detection(sample_denoised, False)
-            if not center_point_pulse or not center_point:
-                continue
-            output_space = helpers.dimention_transformation(center_point_pulse, center_point, False)
-            '''
-            output_space,peaks = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD)
+            # Asumo que 'helpers' está importado en tu script principal
+            output_space, peaks = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD)
             all_peaks.append(peaks) # Guarda los picos para graficarlos
-            print(f"Output space (índices): {output_space}")
+            
+            print(f"Sensor {sensor_idx+1} - Índices de picos detectados: {output_space}")
             for pulse_idx in output_space:
                 if 0 <= pulse_idx < curated_data.shape[2]:
-                     curated_data[0, sensor_idx, int(pulse_idx)] = 1
+                    curated_data[0, sensor_idx, int(pulse_idx)] = 1
+
         if np.any(curated_data):
             model_input = curated_data.reshape(1, -1)
             prediction_probs = model.predict(model_input, verbose=0)
             predicted_indices = np.argwhere(prediction_probs[0] >= PREDICTION_THRESHOLD).flatten()
             print(f"Cuadrantes predichos (índices): {predicted_indices}")
         else:
-            print("No se detectaron ecos claros.")
-    except ValueError as e:
-        print(f"Advertencia durante el procesamiento: {e}. Omitiendo este ciclo.")
-        return raw_data[0], curated_data[0], np.array([])
+            print("No se detectaron ecos claros en ningún sensor.")
+            
+    except Exception as e:
+        print(f"Error durante el procesamiento de picos o la predicción: {e}")
+        return raw_data[0], curated_data[0], np.array([]), all_peaks # Devuelve lo que se tenga hasta el momento
+
     return raw_data[0], curated_data[0], predicted_indices, all_peaks
 
 # --- FUNCIÓN DE DIBUJO DEL DASHBOARD ---
