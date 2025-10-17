@@ -10,3 +10,5 @@ ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_ai_enhanced/.ipynb_che
 ultrasonic_radar/arduino/development/.ipynb_checkpoints/data_processing-checkpoint.ipynb
 ultrasonic_radar/arduino/development/.ipynb_checkpoints/binarycomm-checkpoint.ipynb
 ultrasonic_radar/arduino/captured_data/multisensor_data/.ipynb_checkpoints/sample_2025-09-24_19:21:38-checkpoint.csv
+ultrasonic_radar/legacy_files/.ipynb_checkpoints/data_generation-checkpoint.ipynb
+ultrasonic_radar/legacy_files/.ipynb_checkpoints/model_training-checkpoint.ipynb
