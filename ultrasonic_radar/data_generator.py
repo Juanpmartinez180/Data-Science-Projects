@@ -8,6 +8,7 @@ import random
 import pandas as pd
 from tqdm import tqdm
 import multiprocessing
+import csv
 
 # ===================================================================
 # FASE 1: Configuración y Parámetros
@@ -29,7 +30,7 @@ PROPORCIONES_OBJETOS = {'circulo': 0, 'rectangulo': 1, 'pared': 0}
 RANGO_TAMAÑO_CIRCULO = [5.0, 12.0]; RANGO_TAMAÑO_RECTANGULO = [6.0, 60.0]; RANGO_TAMAÑO_PARED = [50.0, 100.0]
 TAMAÑO_DEL_CUADRANTE = 6.0
 VELOCIDAD_SONIDO = 34300; FRECUENCIA_MUESTREO_ADC = 140000; FRECUENCIA_MUESTREO_ML = 6800
-NUM_MUESTRAS_TOTALES = 10
+NUM_MUESTRAS_TOTALES = 150000
 
 # ===================================================================
 # FASE 2 y 3: Funciones Geométricas y de Generación de Escena
@@ -194,20 +195,27 @@ if __name__ == "__main__":
     y_coords = np.arange(area_total_visible.bounds[1], area_total_visible.bounds[3], TAMAÑO_DEL_CUADRANTE)
     cuadrantes_globales = [box(x, y, x + TAMAÑO_DEL_CUADRANTE, y + TAMAÑO_DEL_CUADRANTE) for x in x_coords for y in y_coords]
 
+    features_filename = "datasets/features_150k.csv"
+    labels_filename = "datasets/labels_150k.csv"
+
     num_cores = multiprocessing.cpu_count()
     print(f"Usando {num_cores} núcleos para generar {NUM_MUESTRAS_TOTALES} muestras con oclusión mejorada...")
 
     args_list = [cuadrantes_globales] * NUM_MUESTRAS_TOTALES
     
-    with multiprocessing.Pool(num_cores) as pool:
-        results = list(tqdm(pool.imap(generar_una_muestra, args_list), total=NUM_MUESTRAS_TOTALES))
+    with open(features_filename, 'w', newline='') as f_features, \
+         open(labels_filename, 'w', newline='') as f_labels:
+        
+        # Crear "escritores" de CSV para cada archivo
+        features_writer = csv.writer(f_features)
+        labels_writer = csv.writer(f_labels)
+        with multiprocessing.Pool(num_cores) as pool:
+            pbar = tqdm(pool.imap(generar_una_muestra, args_list), total=NUM_MUESTRAS_TOTALES)
+            for feature, label in pbar:
+                # Escribir la fila en el archivo correspondiente
+                features_writer.writerow(feature)
+                labels_writer.writerow(label)
 
-    features_list, labels_list = zip(*results)
-    print(f"\nGeneración completada: {len(features_list)} muestras consistentes creadas.")
-
-    # --- Guardado ---
-    df_features = pd.DataFrame(features_list)
-    df_labels = pd.DataFrame(labels_list)
-    df_features.to_csv("features_150k.csv", index=False, header=False)
-    df_labels.to_csv("labels_150k.csv", index=False, header=False)
-    print("Archivos CSV guardados.")
+    print(f"\nGeneración completada: {NUM_MUESTRAS_TOTALES} muestras consistentes creadas.")
+    print(f"\nGeneración completada.")
+    print(f"Datos guardados en '{features_filename}' y '{labels_filename}'.")
