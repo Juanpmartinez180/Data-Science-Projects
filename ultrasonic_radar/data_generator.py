@@ -30,7 +30,8 @@ PROPORCIONES_OBJETOS = {'circulo': 0, 'rectangulo': 1, 'pared': 0}
 RANGO_TAMAÑO_CIRCULO = [5.0, 12.0]; RANGO_TAMAÑO_RECTANGULO = [6.0, 60.0]; RANGO_TAMAÑO_PARED = [50.0, 100.0]
 TAMAÑO_DEL_CUADRANTE = 6.0
 VELOCIDAD_SONIDO = 34300; FRECUENCIA_MUESTREO_ADC = 140000; FRECUENCIA_MUESTREO_ML = 6800
-NUM_MUESTRAS_TOTALES = 150000
+NUM_MUESTRAS_TOTALES = 5
+LOBULO_POLIGONO = Polygon([(x * FACTOR_ESCALA_HAZ, y * FACTOR_ESCALA_HAZ) for x, y in SINGLE_BEAM_SHAPE_POINTS])
 
 # ===================================================================
 # FASE 2 y 3: Funciones Geométricas y de Generación de Escena
@@ -53,6 +54,37 @@ def generar_haces_individuales(angulo_central):
     haz_izq = translate(rotate(haz_base, angulo_izq, origin=(0, 0)), xoff=-DISTANCIA_ENTRE_SENSORES)
     haz_der = translate(rotate(haz_base, angulo_der, origin=(0, 0)), xoff=DISTANCIA_ENTRE_SENSORES)
     return [haz_izq, haz_central, haz_der]
+
+def get_beam_polygon(base_polygon, sensor_id):
+    if sensor_id == 'izq':
+        offset = -DISTANCIA_ENTRE_SENSORES
+    elif sensor_id == 'der':
+        offset = DISTANCIA_ENTRE_SENSORES
+    else: # 'cen'
+        offset = 0
+    return translate(base_polygon, xoff=offset)
+
+def get_total_step_coverage(angulo_central, R_enfoque, d_sensores, lobulo_base):
+    """
+    Calcula la UNIÓN de los 3 haces de sensores para un solo ángulo de barrido.
+    """
+    angulo_izq, angulo_der = obtener_angulos_optimos(angulo_central, R_enfoque, d_sensores)
+    
+    beam_izq_base = get_beam_polygon(lobulo_base, 'izq')
+    beam_cen_base = get_beam_polygon(lobulo_base, 'cen')
+    beam_der_base = get_beam_polygon(lobulo_base, 'der')
+    
+    beam_izq = rotate(beam_izq_base, angulo_izq, origin=(0, 0))
+    beam_cen = rotate(beam_cen_base, angulo_central, origin=(0, 0))
+    beam_der = rotate(beam_der_base, angulo_der, origin=(0, 0))
+    
+    #Unir los 3 polígonos
+    try:
+        total_coverage_at_step = unary_union([beam_izq, beam_cen, beam_der])
+    except Exception:
+        total_coverage_at_step = Polygon() # Devolver polígono vacío en caso de error
+
+    return total_coverage_at_step
 
 # ========= FUNCIÓN MODIFICADA =========
 def generar_escena_aleatoria(area_de_generacion):
@@ -193,10 +225,26 @@ if __name__ == "__main__":
     area_total_visible = box(-250, 0, 250, 220)
     x_coords = np.arange(area_total_visible.bounds[0], area_total_visible.bounds[2], TAMAÑO_DEL_CUADRANTE)
     y_coords = np.arange(area_total_visible.bounds[1], area_total_visible.bounds[3], TAMAÑO_DEL_CUADRANTE)
-    cuadrantes_globales = [box(x, y, x + TAMAÑO_DEL_CUADRANTE, y + TAMAÑO_DEL_CUADRANTE) for x in x_coords for y in y_coords]
+    cuadrantes_iniciales = [box(x, y, x + TAMAÑO_DEL_CUADRANTE, y + TAMAÑO_DEL_CUADRANTE) for x in x_coords for y in y_coords]
 
-    features_filename = "datasets/features_150k.csv"
-    labels_filename = "datasets/labels_150k.csv"
+    print(f"Número total de cuadrantes en la grilla rectangular: {len(cuadrantes_iniciales)}")
+    #calcular area de cobertura de los sensores
+    areas_de_paso_total = []
+    for angulo in ANGULOS_DE_BARRIDO:
+        area_paso = get_total_step_coverage(angulo, DISTANCIA_DE_ENFOQUE, DISTANCIA_ENTRE_SENSORES, LOBULO_POLIGONO)
+        areas_de_paso_total.append(area_paso)
+    # Unir todas las "huellas" de los pasos en una sola forma
+    area_barrido_total = unary_union(areas_de_paso_total)
+    #Eliminar los cuadrantes que no estan dentro del area de cobertura
+    cuadrantes_globales = [q for q in cuadrantes_iniciales if q.centroid.within(area_barrido_total)]
+    #Gu
+    centroides_coords = [[q.centroid.x, q.centroid.y] for q in cuadrantes_globales]
+    np.save('mapa_de_cuadrantes.npy', np.array(centroides))
+
+    print(f"Cuadrantes Barrido Total: {len(cuadrantes_globales)}")
+    
+    features_filename = "datasets/features_150k_1.csv"
+    labels_filename = "datasets/labels_150k_1.csv"
 
     num_cores = multiprocessing.cpu_count()
     print(f"Usando {num_cores} núcleos para generar {NUM_MUESTRAS_TOTALES} muestras con oclusión mejorada...")
