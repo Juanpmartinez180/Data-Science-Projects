@@ -30,8 +30,7 @@ PROPORCIONES_OBJETOS = {'circulo': 0, 'rectangulo': 1, 'pared': 0}
 RANGO_TAMAÑO_CIRCULO = [5.0, 12.0]; RANGO_TAMAÑO_RECTANGULO = [6.0, 60.0]; RANGO_TAMAÑO_PARED = [50.0, 100.0]
 TAMAÑO_DEL_CUADRANTE = 6.0
 VELOCIDAD_SONIDO = 34300; FRECUENCIA_MUESTREO_ADC = 140000; FRECUENCIA_MUESTREO_ML = 6800
-NUM_MUESTRAS_TOTALES = 5
-LOBULO_POLIGONO = Polygon([(x * FACTOR_ESCALA_HAZ, y * FACTOR_ESCALA_HAZ) for x, y in SINGLE_BEAM_SHAPE_POINTS])
+NUM_MUESTRAS_TOTALES = 150000
 
 # ===================================================================
 # FASE 2 y 3: Funciones Geométricas y de Generación de Escena
@@ -219,50 +218,50 @@ def generar_una_muestra(cuadrantes_globales):
 
 # --- Bucle Principal de Generación ---
 if __name__ == "__main__":
-    features_list, labels_list = [], []
-    ##escena_list, haces_list, angulo_central_list, firma_eco_list = [],[],[],[]
-    
+    #Definir cuadrantes. Esto generara las labels y coordenadas de los objetos detectados    
     area_total_visible = box(-250, 0, 250, 220)
     x_coords = np.arange(area_total_visible.bounds[0], area_total_visible.bounds[2], TAMAÑO_DEL_CUADRANTE)
     y_coords = np.arange(area_total_visible.bounds[1], area_total_visible.bounds[3], TAMAÑO_DEL_CUADRANTE)
     cuadrantes_iniciales = [box(x, y, x + TAMAÑO_DEL_CUADRANTE, y + TAMAÑO_DEL_CUADRANTE) for x in x_coords for y in y_coords]
 
-    print(f"Número total de cuadrantes en la grilla rectangular: {len(cuadrantes_iniciales)}")
     #calcular area de cobertura de los sensores
     areas_de_paso_total = []
     for angulo in ANGULOS_DE_BARRIDO:
+        LOBULO_POLIGONO = crear_haz_desde_puntos(SINGLE_BEAM_SHAPE_POINTS, FACTOR_ESCALA_HAZ)
         area_paso = get_total_step_coverage(angulo, DISTANCIA_DE_ENFOQUE, DISTANCIA_ENTRE_SENSORES, LOBULO_POLIGONO)
         areas_de_paso_total.append(area_paso)
-    # Unir todas las "huellas" de los pasos en una sola forma
+    #Unir todas las "huellas" de los pasos en una sola forma
     area_barrido_total = unary_union(areas_de_paso_total)
     #Eliminar los cuadrantes que no estan dentro del area de cobertura
     cuadrantes_globales = [q for q in cuadrantes_iniciales if q.centroid.within(area_barrido_total)]
-    #Gu
+    #Guardar mapa para reconstruir los cuadrantes en su posicion x,y correspondiente
     centroides_coords = [[q.centroid.x, q.centroid.y] for q in cuadrantes_globales]
-    np.save('mapa_de_cuadrantes.npy', np.array(centroides))
+    np.save('mapa_de_cuadrantes.npy', np.array(centroides_coords))
 
-    print(f"Cuadrantes Barrido Total: {len(cuadrantes_globales)}")
-    
-    features_filename = "datasets/features_150k_1.csv"
-    labels_filename = "datasets/labels_150k_1.csv"
+    #Definir locacion de los archivos del dataset
+    features_filename = "datasets/features_150k_17_11_25.csv"
+    labels_filename = "datasets/labels_150k_17_11_25.csv"
 
     num_cores = multiprocessing.cpu_count()
     print(f"Usando {num_cores} núcleos para generar {NUM_MUESTRAS_TOTALES} muestras con oclusión mejorada...")
 
     args_list = [cuadrantes_globales] * NUM_MUESTRAS_TOTALES
-    
-    with open(features_filename, 'w', newline='') as f_features, \
-         open(labels_filename, 'w', newline='') as f_labels:
-        
-        # Crear "escritores" de CSV para cada archivo
-        features_writer = csv.writer(f_features)
-        labels_writer = csv.writer(f_labels)
-        with multiprocessing.Pool(num_cores) as pool:
-            pbar = tqdm(pool.imap(generar_una_muestra, args_list), total=NUM_MUESTRAS_TOTALES)
-            for feature, label in pbar:
-                # Escribir la fila en el archivo correspondiente
-                features_writer.writerow(feature)
-                labels_writer.writerow(label)
+
+    all_features = []
+    all_labels = []    
+    with multiprocessing.Pool(num_cores) as pool:
+        pbar = tqdm(pool.imap(generar_una_muestra, args_list), total=NUM_MUESTRAS_TOTALES)
+        for feature, label in pbar:
+            all_features.append(feature)
+            all_labels.append(label)
+
+    print("Conversión de labels y features a NumPy arrays...")
+    # Convertir la lista de listas a un array 2D de NumPy
+    labels_array = np.array(all_labels, dtype=np.uint8)
+    features_array = np.array(all_features, dtype=np.uint8)
+    #guardar las listas en archivos binarios
+    np.save(features_filename, features_array)
+    np.save(labels_filename, labels_array)
 
     print(f"\nGeneración completada: {NUM_MUESTRAS_TOTALES} muestras consistentes creadas.")
     print(f"\nGeneración completada.")
