@@ -13,4 +13,5 @@ ultrasonic_radar/arduino/captured_data/multisensor_data/.ipynb_checkpoints/sampl
 ultrasonic_radar/legacy_files/.ipynb_checkpoints/data_generation-checkpoint.ipynb
 ultrasonic_radar/legacy_files/.ipynb_checkpoints/model_training-checkpoint.ipynb
 ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_v2.0.ino/.ipynb_checkpoints/
-ultrasonic_radar/datasets/
+
+ultrasonic_radar/datasets/.ipynb_checkpoints/
