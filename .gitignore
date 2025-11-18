@@ -15,3 +15,5 @@ ultrasonic_radar/legacy_files/.ipynb_checkpoints/model_training-checkpoint.ipynb
 ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_v2.0.ino/.ipynb_checkpoints/
 
 ultrasonic_radar/datasets/.ipynb_checkpoints/
+ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_test_1sensor/.ipynb_checkpoints/ultrasonic_sonar_test_1sensor-checkpoint.ino
+ultrasonic_radar/arduino/models/.ipynb_checkpoints/
