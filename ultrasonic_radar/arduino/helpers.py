@@ -198,15 +198,30 @@ def output_dimention_pulses(sample, threshold):
     # que estén separados por al menos 150 muestras.
     peaks, properties = find_peaks(envelope_zero_centered, prominence=prominence, distance=150)
 
-    if peaks[0] < 400:
-        initial_pulse = peaks[0]
-        peaks_clean = peaks[~(peaks < 500)]
+    # La reverberación del sistema o pulso inicial ocurre en las muestras cercanas a 0.
+    # Asumimos que cualquier pico antes de la muestra 500 debe ser descartado como
+    # ruido del sensor, ya que representa una distancia menor a ~3.5 cm (tu resolución axial).
+    
+    REVERBERATION_CUTOFF_SAMPLE = 400
+
+    # El pulso inicial es el primer pico detectado (o 0 si no hay picos cercanos)
+    initial_pulse_idx = peaks[0] if len(peaks) > 0 and peaks[0] < REVERBERATION_CUTOFF_SAMPLE else 0
+    
+    # Filtrar: Mantener solo picos que están después del pulso inicial/reverberación
+    peaks_clean = peaks[~(peaks < REVERBERATION_CUTOFF_SAMPLE)]
+
+    # Conversión de las muestras ADC (índices) al espacio del modelo ML (índices 0-80)
+    # Nota: El índice ADC debe restarse a la muestra inicial, pero aquí usamos un valor fijo (500)
+    # para ser consistentes con la limpieza del pulso inicial.
+
+    if initial_pulse_idx > 0:
+        # Si detectamos un pulso inicial claro, lo usamos como punto de referencia
+        reference_pulse = initial_pulse_idx
     else:
-        initial_pulse = 0
-        
-    output_space = [int((echo - initial_pulse)*transformation_ratio) for echo in peaks_clean]
+        # Si no, asumimos que la reverberación más fuerte termina en el corte
+        reference_pulse = REVERBERATION_CUTOFF_SAMPLE
+
+    # output_space es el vector de índices de 0 a 80
+    output_space = [int((echo - reference_pulse) * transformation_ratio) for echo in peaks_clean]
 
     return(output_space, peaks)
-
-        
-    return(output_space)
