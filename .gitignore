@@ -17,3 +17,5 @@ ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_v2.0.ino/.ipynb_checkp
 ultrasonic_radar/datasets/.ipynb_checkpoints/
 ultrasonic_radar/arduino/arduino_scripts/ultrasonic_sonar_test_1sensor/.ipynb_checkpoints/ultrasonic_sonar_test_1sensor-checkpoint.ino
 ultrasonic_radar/arduino/models/.ipynb_checkpoints/
+ultrasonic_radar/datasets/labels_150k_17_11_25.csv.npy
+ultrasonic_radar/arduino/captured_data/multisensor_data/.ipynb_checkpoints/sample_2025-11-18_22:49:14-checkpoint.csv
