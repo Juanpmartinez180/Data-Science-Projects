@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 from numpy import diff
 from scipy.signal import hilbert, find_peaks, savgol_filter
+import os
+import functools
 
+# Variable global para almacenar las sigmas cargadas
+CALIBRATION_SIGMAS = None
+NOISE_STATS_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'datasets', 'sensor_noise_stats.npy')
 
 ############
 
@@ -163,26 +168,37 @@ def dimention_transformation(center_point_pulse, center_point, print_results):
     output_space = [int((echo - center_point_pulse)*transformation_ratio) for echo in center_point]
 
     return(output_space)
-
+    
 ############
 
-def output_dimention_pulses(sample, threshold):
+def load_calibration_sigmas():
+    """Carga las sigmas una sola vez."""
+    global CALIBRATION_SIGMAS
+    if CALIBRATION_SIGMAS is None:
+        try:
+            # La ruta asume que helpers.py está en un subdirectorio
+            CALIBRATION_SIGMAS = np.load(NOISE_STATS_FILE_PATH)
+            print(f"Calibration: Sigmas cargadas exitosamente de {NOISE_STATS_FILE_PATH}")
+        except FileNotFoundError:
+            print(f"Calibration ERROR: No se encontró {NOISE_STATS_FILE_PATH}. Usando umbral base.")
+            CALIBRATION_SIGMAS = np.array([0.1, 0.1, 0.1]) # Valores por defecto
+            
+############
+
+def output_dimention_pulses(sample, threshold, sensor_idx, detection_factor):
     """
     Description: Function to return the sample number for a detected initial pulse and for the captured echo/es
     Input: sample: Array with all the raw data
             threshold: Threshold value used for the promincence criteria
     Output: output_space
     """
+    # Aseguramos que las sigmas estén cargadas
+    if CALIBRATION_SIGMAS is None:
+        load_calibration_sigmas()
+
     initial_sample_freq = 140000  # ADC space
     final_sample_freq = 6800  # ML algorithm space
-    default_detection_threshold = 0.1
-    
     transformation_ratio = final_sample_freq / initial_sample_freq
-
-    if threshold > 0.001:
-        prominence = threshold
-    else:
-        prominence = default_detection_threshold
 
     signal = sample
     # Obtener la envolvente de la señal usando la Transformada de Hilbert
@@ -193,9 +209,20 @@ def output_dimention_pulses(sample, threshold):
     envelope_zero_centered = envelope - baseline
 
     # --- 3. Detección de Picos en la Envolvente ---
-    
-    # Encuentra picos que tengan una altura mínima de 0.1 por encima del nivel base y
-    # que estén separados por al menos 150 muestras.
+
+    # 1. Obtener la sigma base de este sensor (garantizado que existe)
+    base_sigma = CALIBRATION_SIGMAS[sensor_idx]
+    # 2. Definir el factor de detección. Esto es el multiplicador de sigma.
+    DETECTION_FACTOR = 4.0
+
+    prominence = base_sigma * detection_factor
+
+    if threshold > 0.001:
+        prominence = max(prominence, threshold) 
+    else:
+        prominence = max(prominence, 0.1) # Usar 0.1 como minimo si el umbral base es 0
+        
+    # Encuentra picos usando la prominencia dinámica que estén separados por al menos 150 muestras.
     peaks, properties = find_peaks(envelope_zero_centered, prominence=prominence, distance=150)
 
     # La reverberación del sistema o pulso inicial ocurre en las muestras cercanas a 0.

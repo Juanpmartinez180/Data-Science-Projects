@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.widgets import Slider
 from keras.models import load_model
 from keras import backend as K
 import seaborn as sns
@@ -25,12 +26,16 @@ N_SENSORS = 3
 SERIAL_LENGTH = 2048 # Largo de la señal cruda
 BYTES_PER_SENSOR = SERIAL_LENGTH * 2 
 
+# --- CONFIGURACIÓN UI/Sliders ---
+# Factores de detección inicial (Multiplicador de Sigma)
+INITIAL_DETECTION_FACTORS = [4.0, 4.0, 4.0]
+
 # --- CONFIGURACIÓN DEL MODELO Y DATOS ---
 MODEL_PATH = 'models/model_v3.h5' # Ajusta tu ruta
 MAP_FILE = '../datasets/mapa_de_cuadrantes.npy' # Mapa de cuadrantes (X, Y)
 NORM_STATS_FILE = '../datasets/model_normalization_stats.npy' # Guardar el mean/std del training
 PREDICTION_THRESHOLD = 0.25 # ¡Umbral óptimo según tu Monte Carlo!
-PEAK_DETECTION_THRESHOLD = 0.1 # Umbral de output_dimention_pulses
+PEAK_DETECTION_THRESHOLD = 0.006 # Umbral de output_dimention_pulses
 
 # --- CONSTANTES DE BEAM STEERING (De data_generator.py) ---
 DISTANCIA_ENTRE_SENSORES = 15.0 # cm
@@ -103,7 +108,7 @@ def generar_haces_individuales(angulo_central):
     return haz_izq, haz_central, haz_der, angulo_izq, angulo_der
 
 # --- FUNCIONES DE PROCESAMIENTO ---
-def capture_and_process(ser, model, norm_stats):
+def capture_and_process(ser, model, norm_stats, detection_factors):
     """
     Captura datos, lee el ángulo, procesa, normaliza y ejecuta la inferencia.
     """
@@ -161,7 +166,8 @@ def capture_and_process(ser, model, norm_stats):
             
             # Usar la función de helpers para obtener los índices
             # El umbral aquí se pasa como `threshold` y se convierte a `prominence` dentro de helpers.py
-            output_space, _ = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD)
+            factor = detection_factors[sensor_idx]
+            output_space, _ = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD, sensor_idx, factor)
             
             # Convertir a vector binario 81
             firma_sensor = np.zeros(81)
@@ -203,20 +209,21 @@ def capture_and_process(ser, model, norm_stats):
     return central_angle_deg, raw_data[0], curated_data, predicted_indices, prediction_probs[0]
 
 # --- FUNCIÓN DE DIBUJO DEL DASHBOARD ---
-def update_plot(frame, ser, model, norm_stats, axes, mapa_centroides):
+def update_plot(frame, ser, model, norm_stats, axes, mapa_centroides, detection_factors):
     """Función que se ejecuta en cada intervalo para actualizar los 4 gráficos."""
     ax1, ax2, ax3 = axes
     
     try:
         # 1. Captura y Proceso
-        central_angle_deg, raw_data, curated_data, predicted_indices, _ = capture_and_process(ser, model, norm_stats)
-        
+        central_angle_deg, raw_data, curated_data, predicted_indices, _ = capture_and_process(
+                ser, model, norm_stats, detection_factors)        
         # 2. Gráfico de Señales Crudas (Panel Izquierdo)
         ax1.clear()
         for i in range(N_SENSORS):
             sample = raw_data[i, 100:]
+            factor = detection_factors[i]
             # asumo que el índice de pico se obtiene de nuevo para visualización (simple)
-            _, peaks = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD)
+            _, peaks = helpers.output_dimention_pulses(sample, PEAK_DETECTION_THRESHOLD, i, factor)
             
             ax1.plot(np.arange(0, len(sample)), sample, label=f's{i+1}')
             valid_peaks = peaks[peaks < len(sample)]
@@ -260,7 +267,11 @@ def update_plot(frame, ser, model, norm_stats, axes, mapa_centroides):
                 label=f'Predicción ({len(predicted_indices)})'
             )
         
-        ax3.set_title(f"Predicción Espacial | Umbral: {PREDICTION_THRESHOLD}\nActualizado: {time.strftime('%H:%M:%S')}")
+        ax3.set_title(
+        f"Predicción Espacial | Umbral: {PREDICTION_THRESHOLD}\n"
+        f"F. Det. S1: {detection_factors[0]:.1f} | S2: {detection_factors[1]:.1f} | S3: {detection_factors[2]:.1f}\n"
+        f"Actualizado: {time.strftime('%H:%M:%S')}"
+        )
         ax3.set_xlabel('X [cm]')
         ax3.set_ylabel('Y [cm]')
         ax3.set_xlim([-250, 250]); ax3.set_ylim([0, 250]) # Limites en CM
@@ -289,7 +300,8 @@ if __name__ == '__main__':
         print(f"Error cargando archivos: {e}")
         print("Asegúrate de que el modelo y los archivos .npy estén en las rutas correctas.")
         exit()
-    
+    # Inicializar Factores de Detección (MUTABLE - lista)
+    detection_factors = INITIAL_DETECTION_FACTORS
     ser = None
     try:
         # 2. Inicializar Serial
@@ -300,16 +312,41 @@ if __name__ == '__main__':
         
         # 3. Inicializar Dashboard
         fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+        ax_sliders = plt.axes([0.1, 0.05, 0.8, 0.15])
+
+        # --- CREACIÓN DE SLIDERS ---
+        slider_axes = []
+        sliders = []
+        for i in range(N_SENSORS):
+            ax_s = plt.axes([0.15, 0.1 - i * 0.03, 0.7, 0.02])
+            slider_axes.append(ax_s)
+            
+            # Slider para el factor de detección
+            slider = Slider(
+                ax=ax_s,
+                label=f'Factor Det. S{i+1} (x\u03c3)',
+                valmin=1.0,
+                valmax=10.0,
+                valinit=INITIAL_DETECTION_FACTORS[i],
+                valstep=0.1
+            )
+            sliders.append(slider)
+            
+            # Función de actualización del slider
+            def update_factor(val, index=i):
+                detection_factors[index] = val # Actualiza la lista mutable
+            
+            slider.on_changed(update_factor)
         
         ani = animation.FuncAnimation(
             fig,
             update_plot,
-            fargs=(ser, classifier, norm_stats, axes, mapa_centroides),
+            fargs=(ser, classifier, norm_stats, axes, mapa_centroides, detection_factors),
             interval=REFRESH_INTERVAL_SECONDS * 1000,
             cache_frame_data=False
         )
         
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0.18, 1, 1])
         plt.show()
 
     except Exception as e:
