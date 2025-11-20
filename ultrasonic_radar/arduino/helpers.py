@@ -3,7 +3,15 @@ import functools
 import numpy as np
 from numpy import diff
 import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
+from numpy import diff
+from scipy.signal import hilbert, find_peaks, savgol_filter
+import os
+import functools
 
+# Variable global para almacenar las sigmas cargadas
+CALIBRATION_SIGMAS = None
+NOISE_STATS_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'datasets', 'sensor_noise_stats.npy')
 
 ############
 
@@ -160,3 +168,87 @@ def dimention_transformation(center_point_pulse, center_point, print_results):
     output_space = [int((echo - center_point_pulse)*transformation_ratio) for echo in center_point]
 
     return(output_space)
+    
+############
+
+def load_calibration_sigmas():
+    """Carga las sigmas una sola vez."""
+    global CALIBRATION_SIGMAS
+    if CALIBRATION_SIGMAS is None:
+        try:
+            # La ruta asume que helpers.py está en un subdirectorio
+            CALIBRATION_SIGMAS = np.load(NOISE_STATS_FILE_PATH)
+            print(f"Calibration: Sigmas cargadas exitosamente de {NOISE_STATS_FILE_PATH}")
+        except FileNotFoundError:
+            print(f"Calibration ERROR: No se encontró {NOISE_STATS_FILE_PATH}. Usando umbral base.")
+            CALIBRATION_SIGMAS = np.array([0.1, 0.1, 0.1]) # Valores por defecto
+            
+############
+
+def output_dimention_pulses(sample, threshold, sensor_idx, detection_factor):
+    """
+    Description: Function to return the sample number for a detected initial pulse and for the captured echo/es
+    Input: sample: Array with all the raw data
+            threshold: Threshold value used for the promincence criteria
+    Output: output_space
+    """
+    # Aseguramos que las sigmas estén cargadas
+    if CALIBRATION_SIGMAS is None:
+        load_calibration_sigmas()
+
+    initial_sample_freq = 140000  # ADC space
+    final_sample_freq = 6800  # ML algorithm space
+    transformation_ratio = final_sample_freq / initial_sample_freq
+
+    signal = sample
+    # Obtener la envolvente de la señal usando la Transformada de Hilbert
+    analytic_signal = hilbert(signal)
+    envelope = np.abs(analytic_signal)
+    
+    baseline = np.median(envelope)
+    envelope_zero_centered = envelope - baseline
+
+    # --- 3. Detección de Picos en la Envolvente ---
+
+    # 1. Obtener la sigma base de este sensor (garantizado que existe)
+    base_sigma = CALIBRATION_SIGMAS[sensor_idx]
+    # 2. Definir el factor de detección. Esto es el multiplicador de sigma.
+    DETECTION_FACTOR = 4.0
+
+    prominence = base_sigma * detection_factor
+
+    if threshold > 0.001:
+        prominence = max(prominence, threshold) 
+    else:
+        prominence = max(prominence, 0.1) # Usar 0.1 como minimo si el umbral base es 0
+        
+    # Encuentra picos usando la prominencia dinámica que estén separados por al menos 150 muestras.
+    peaks, properties = find_peaks(envelope_zero_centered, prominence=prominence, distance=150)
+
+    # La reverberación del sistema o pulso inicial ocurre en las muestras cercanas a 0.
+    # Asumimos que cualquier pico antes de la muestra 500 debe ser descartado como
+    # ruido del sensor, ya que representa una distancia menor a ~3.5 cm (tu resolución axial).
+    
+    REVERBERATION_CUTOFF_SAMPLE = 400
+
+    # El pulso inicial es el primer pico detectado (o 0 si no hay picos cercanos)
+    initial_pulse_idx = peaks[0] if len(peaks) > 0 and peaks[0] < REVERBERATION_CUTOFF_SAMPLE else 0
+    
+    # Filtrar: Mantener solo picos que están después del pulso inicial/reverberación
+    peaks_clean = peaks[~(peaks < REVERBERATION_CUTOFF_SAMPLE)]
+
+    # Conversión de las muestras ADC (índices) al espacio del modelo ML (índices 0-80)
+    # Nota: El índice ADC debe restarse a la muestra inicial, pero aquí usamos un valor fijo (500)
+    # para ser consistentes con la limpieza del pulso inicial.
+
+    if initial_pulse_idx > 0:
+        # Si detectamos un pulso inicial claro, lo usamos como punto de referencia
+        reference_pulse = initial_pulse_idx
+    else:
+        # Si no, asumimos que la reverberación más fuerte termina en el corte
+        reference_pulse = REVERBERATION_CUTOFF_SAMPLE
+
+    # output_space es el vector de índices de 0 a 80
+    output_space = [int((echo - reference_pulse) * transformation_ratio) for echo in peaks_clean]
+
+    return(output_space, peaks)

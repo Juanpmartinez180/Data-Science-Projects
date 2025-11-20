@@ -1,0 +1,10 @@
+model_v3.h5 > created on 17/11/25.
+    - Multilabel model
+    - Sensor main beam angle as feature
+    - Trained with 150K sample dataset. 
+
+model_v2.h5 > created on __?
+    - Multilabel
+    - Created during first development stages
+    - Worked with great performance
+    - For fixed main beam angle (0 degrees, +/-15 for lateral sensors) 
