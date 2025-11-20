@@ -142,15 +142,17 @@ def capture_and_process(ser, model, norm_stats, detection_factors):
 
         # 2b. CAPTURAR: Leer el bloque completo
         binary_data = ser.read(BYTES_PER_SENSOR)
-        ser.readline() # Limpiar la línea de fin
+        #ser.readline() # Limpiar la línea de fin
 
-        if len(binary_data) == BYTES_PER_SENSOR:
-            unpacked_data = struct.unpack(f'<{SERIAL_LENGTH}H', binary_data)
-            voltages = np.array(unpacked_data) * (3.3 / 4095.0)
-            raw_data[0, j, :] = voltages
-        else:
-            print(f"Error de lectura para el sensor {j+1}. Bytes recibidos: {len(binary_data)}")
-            raw_data[0, j, :] = np.nan
+        if len(binary_data) != BYTES_PER_SENSOR:
+            print(f"ERROR DE SINCRONIZACIÓN: Sensor {j+1}. Esperados: {BYTES_PER_SENSOR}, Recibidos: {len(binary_data)}")
+            # Añade aquí una limpieza de buffer extrema para intentar re-sincronizar
+            ser.flushInput() 
+            raw_data[0, j, :] = np.nan # Marca como inválido
+            continue
+        unpacked_data = struct.unpack(f'<{SERIAL_LENGTH}H', binary_data)
+        voltages = np.array(unpacked_data) * (3.3 / 4095.0)
+        raw_data[0, j, :] = voltages
     
     # 3. Procesamiento y Feature Engineering
     curated_data = np.zeros([N_SENSORS, 81])
