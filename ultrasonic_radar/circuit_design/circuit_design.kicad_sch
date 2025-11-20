@@ -5,6 +5,171 @@
 	(uuid "b8416165-cca2-412a-926f-d15dbbcb1a03")
 	(paper "A4")
 	(lib_symbols
+		(symbol "Connector:Conn_01x02_Socket"
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at 0 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "Conn_01x02_Socket"
+				(at 0 -5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Generic connector, single row, 01x02, script generated"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_locked" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_1x??_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "Conn_01x02_Socket_1_1"
+				(polyline
+					(pts
+						(xy -1.27 0) (xy -0.508 0)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -2.54) (xy -0.508 -2.54)
+					)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 -0.508)
+					(mid -0.5058 0)
+					(end 0 0.508)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start 0 -3.048)
+					(mid -0.5058 -2.54)
+					(end 0 -2.032)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Connector:Conn_01x03_Pin"
 			(pin_names
 				(offset 1.016)
@@ -3116,7 +3281,7 @@
 			)
 		)
 	)
-	(global_label "Pin_3"
+	(global_label "Pwm1-right"
 		(shape input)
 		(at 29.21 113.03 180)
 		(effects
@@ -3128,6 +3293,26 @@
 		(uuid "43333bd7-f4ad-49ba-9943-7426024b08d0")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 29.21 113.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "GND"
+		(shape input)
+		(at 198.12 152.4 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "44b53cac-4420-4e49-a226-d184fcea6490")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 198.12 152.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3276,7 +3461,7 @@
 			)
 		)
 	)
-	(global_label "Pwm3-left"
+	(global_label "RawEcho3"
 		(shape input)
 		(at 120.65 138.43 0)
 		(effects
@@ -3296,7 +3481,7 @@
 			)
 		)
 	)
-	(global_label "Pin_5"
+	(global_label "Pwm3-left"
 		(shape input)
 		(at 29.21 118.11 180)
 		(effects
@@ -3516,7 +3701,7 @@
 			)
 		)
 	)
-	(global_label "Pwm2-center"
+	(global_label "RawEcho2"
 		(shape input)
 		(at 120.65 135.89 0)
 		(effects
@@ -3596,7 +3781,7 @@
 			)
 		)
 	)
-	(global_label "Pwm1-right"
+	(global_label "RawEcho1"
 		(shape input)
 		(at 120.65 133.35 0)
 		(effects
@@ -3636,7 +3821,7 @@
 			)
 		)
 	)
-	(global_label "Pin_4"
+	(global_label "Pwm2-center"
 		(shape input)
 		(at 29.21 115.57 180)
 		(effects
@@ -3748,6 +3933,26 @@
 		(uuid "cad55c9d-4c0f-491a-9660-4d07c368d6b3")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 77.47 59.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "+5V"
+		(shape input)
+		(at 198.12 149.86 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "d033b808-ed8d-4436-a43a-2928810f5932")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 198.12 149.86 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4663,6 +4868,77 @@
 			(project ""
 				(path "/b8416165-cca2-412a-926f-d15dbbcb1a03"
 					(reference "#PWR03")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x02_Socket")
+		(at 203.2 149.86 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a06f8c21-aa18-4067-bc06-2e4ab284bfd6")
+		(property "Reference" "J1"
+			(at 204.47 149.8599 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Conn_01x02_Socket"
+			(at 204.47 152.3999 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Footprint" "Connector_Molex:Molex_KK-396_5273-02A_1x02_P3.96mm_Vertical"
+			(at 203.2 149.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 203.2 149.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x02, script generated"
+			(at 203.2 149.86 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9f027834-4c13-406d-ac0b-e0768975d2d8")
+		)
+		(pin "2"
+			(uuid "dbcd4d33-12ee-4f59-8136-4f366c3ed9e7")
+		)
+		(instances
+			(project ""
+				(path "/b8416165-cca2-412a-926f-d15dbbcb1a03"
+					(reference "J1")
 					(unit 1)
 				)
 			)
